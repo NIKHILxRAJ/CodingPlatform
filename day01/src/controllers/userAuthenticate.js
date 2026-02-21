@@ -1,79 +1,83 @@
 const User = require("../models/users");
-const User = require("../models/users");
-const bcrypt = require("bcrypt")
+const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
+const validate = require("../utils/validator");
 
+// ================= REGISTER =================
 
+const register = async (req, res) => {
+  try {
+    validate(req.body);
 
-const validate = require('../utils/validator');
+    const { emailId, password } = req.body;
 
-// register features
-const register = async(req,res)=>
-{
-    try{    
+    // hash password
+    req.body.password = await bcrypt.hash(password, 10);
 
-        // validate the data;
-        validate(req.body);
-        const{firstName,emailId,password}=req.body;
+    const user = await User.create(req.body);
 
+    const token = jwt.sign(
+      { _id: user._id, emailId: emailId },
+      process.env.JWT_KEY,
+      { expiresIn: "1h" }
+    );
 
+    res.cookie("token", token, { maxAge: 60 * 60 * 1000 });
 
-         req.body.password = await bcrypt.hash(password,10);
+    res.status(201).send("User Registered successfully");
+  } catch (err) {
+    res.status(400).send("Error: " + err.message);
+  }
+};
 
-         const user = await User.create(req.body);
-         const token = jwt.sign({_id:user._id,emailId:emailId},process.env.JWT_KEY,{expiresIn:60*60});
-          res.cookie('token',token,{maxAge:60*60*1000});
-          res.status(201).send("User Register sucessfully");
-    } 
-    catch(err){
+// ================= LOGIN =================
 
-        res.status(400).send("Error"+err);
+const login = async (req, res) => {
+  try {
+    const { emailId, password } = req.body;
+
+    if (!emailId || !password) {
+      throw new Error("Invalid Credential");
     }
-}
 
-// login feature
+    // find user
+    const user = await User.findOne({ emailId });
 
-const login = async(req,res)=>{
-    try{
-        const {emailId,password}= req.body;
-        if(!emailId)
-        {
-            throw new Error("Invalid Credential");
-        }
-        if(!password)
-        {
-            throw new Error = ("Invalid Credential"); 
-        }
-         const user = User.findOne({emailId});
-
-          const match = bcrypt.compare(password,user.password);
-
-        if(!match)
-        {
-            throw new Error("Invalid Crendential");
-        }
-
-             const token = jwt.sign({_id:user._id,emailId:emailId},process.env.JWT_KEY,{expiresIn:60*60});
-          res.cookie('token',token,{maxAge:60*60*1000});
-          res.ststus(200).send("Logged in sucessfully");
+    if (!user) {
+      throw new Error("Invalid Credential");
     }
-    catch(err){
 
-        res.status(401).send("Eroor"+err);
+    // compare password
+    const match = await bcrypt.compare(password, user.password);
+
+    if (!match) {
+      throw new Error("Invalid Credential");
     }
-}
 
+    // create token
+    const token = jwt.sign(
+      { _id: user._id, emailId: emailId },
+      process.env.JWT_KEY,
+      { expiresIn: "1h" }
+    );
 
-// logOut feature
+    res.cookie("token", token, { maxAge: 60 * 60 * 1000 });
 
-const logout = async(req,res)=>
-{
-    try{
-         
+    res.status(200).send("Logged in successfully");
+  } catch (err) {
+    res.status(401).send("Error: " + err.message);
+  }
+};
 
-    }
-    catch(err){
+// ================= LOGOUT =================
 
-    }
- 
-}
+const logout = async (req, res) => {
+  try {
+    res.clearCookie("token");
+    res.status(200).send("Logged out successfully");
+  } catch (err) {
+    res.status(400).send("Error: " + err.message);
+  }
+};
+
+module.exports = { register, login, logout };

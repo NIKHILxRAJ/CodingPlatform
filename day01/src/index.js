@@ -2,11 +2,14 @@
  const app = express();
  require('dotenv').config();
  const main = require('./config/db');
-const { parse } = require('dotenv');
+ const { parse } = require('dotenv');   //why this line is here i dont know where it belong to ..
   const cookieParse = require('cookie-parser');
+   const authRouter = require("./routes/userAuth");
 
- app.use(express.json());
-app.use(cookieParse()); 
+    app.use(express.json());
+    app.use(cookieParse()); 
+
+    app.use('/user',authRouter);
 
  main()
  .then(async()=>{
